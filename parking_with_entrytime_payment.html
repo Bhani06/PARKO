@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Visual Parking Reservation System</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      text-align: center;
+      padding: 30px;
+    }
+    h1 {
+      color: #333;
+    }
+    .section {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px auto;
+      width: 90%;
+      max-width: 600px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    input[type="text"], input[type="datetime-local"] {
+      padding: 10px;
+      width: 80%;
+      margin: 10px 0;
+      font-size: 16px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      background: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .hidden {
+      display: none;
+    }
+    .slots-container {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 15px;
+      margin-top: 15px;
+    }
+    .slot {
+      background: #ddd;
+      padding: 25px 0;
+      font-size: 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      user-select: none;
+      border: 2px solid transparent;
+      transition: border-color 0.3s, background-color 0.3s;
+    }
+    .slot:hover {
+      background: #c0d4ff;
+    }
+    .slot.selected {
+      background: #007BFF;
+      color: white;
+      border-color: #0056b3;
+    }
+    .qr-code img {
+      width: 200px;
+      height: 200px;
+      margin-top: 10px;
+    }
+    p {
+      margin: 6px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Visual Parking Reservation System</h1>
+
+  <!-- 1. User Details -->
+  <div class="section" id="formSection">
+    <input type="text" id="nameInput" placeholder="Enter your name" />
+    <input type="text" id="vehicleInput" placeholder="Enter vehicle number" />
+    <button id="proceedBtn">Proceed</button>
+  </div>
+
+  <!-- 2. Select Slot Visually and Entry Time -->
+  <div class="section hidden" id="slotTimeSection">
+    <h2>Select Parking Slot</h2>
+    <div class="slots-container" id="slotsContainer">
+      <!-- Slots will be generated here -->
+    </div>
+    <br />
+    <label for="entryTimeInput">Entry Time:</label><br />
+    <input type="datetime-local" id="entryTimeInput" />
+    <br />
+    <button id="confirmSlotTimeBtn" disabled>Confirm Slot & Time</button>
+  </div>
+
+  <!-- 3. Payment Section -->
+  <div class="section hidden" id="paymentSection">
+    <p id="paymentInfo"></p>
+    <div class="qr-code">
+      <h3>Scan to Pay</h3>
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=your-upi-id@bank&pn=ParkingApp" alt="Payment QR Code" />
+    </div>
+    <br />
+    <button id="paymentReceivedBtn" disabled>Payment Received</button>
+  </div>
+
+  <!-- 4. Receipt -->
+  <div class="section hidden" id="receiptSection">
+    <h2>Booking Receipt</h2>
+    <p><strong>Name:</strong> <span id="receiptName"></span></p>
+    <p><strong>Vehicle Number:</strong> <span id="receiptVehicle"></span></p>
+    <p><strong>Slot:</strong> <span id="receiptSlot"></span></p>
+    <p><strong>Entry Time:</strong> <span id="entryTime"></span></p>
+    <p><strong>Exit Time:</strong> <span id="exitTime"></span></p>
+    <div class="qr-code">
+      <h3>Entry QR Code</h3>
+      <img id="entryQr" alt="Entry QR Code" />
+    </div>
+    <p>✅ Thank you for booking with us!</p>
+  </div>
+
+  <script>
+    const proceedBtn = document.getElementById('proceedBtn');
+    const nameInput = document.getElementById('nameInput');
+    const vehicleInput = document.getElementById('vehicleInput');
+    const formSection = document.getElementById('formSection');
+
+    const slotTimeSection = document.getElementById('slotTimeSection');
+    const slotsContainer = document.getElementById('slotsContainer');
+    const entryTimeInput = document.getElementById('entryTimeInput');
+    const confirmSlotTimeBtn = document.getElementById('confirmSlotTimeBtn');
+
+    const paymentSection = document.getElementById('paymentSection');
+    const paymentInfo = document.getElementById('paymentInfo');
+    const paymentReceivedBtn = document.getElementById('paymentReceivedBtn');
+
+    const receiptSection = document.getElementById('receiptSection');
+    const receiptName = document.getElementById('receiptName');
+    const receiptVehicle = document.getElementById('receiptVehicle');
+    const receiptSlot = document.getElementById('receiptSlot');
+    const entryTimeEl = document.getElementById('entryTime');
+    const exitTimeEl = document.getElementById('exitTime');
+    const entryQrImg = document.getElementById('entryQr');
+
+    const totalSlots = 12;
+    let selectedSlot = null;
+    let bookedEntryTime = null;
+    let bookedExitTime = null;
+
+    // Generate slot boxes visually
+    function createSlots() {
+      slotsContainer.innerHTML = '';
+      for(let i=1; i<= totalSlots; i++) {
+        const slotDiv = document.createElement('div');
+        slotDiv.classList.add('slot');
+        slotDiv.textContent = `S${i}`;
+        slotDiv.dataset.slot = `S${i}`;
+
+        slotDiv.addEventListener('click', () => {
+          // Remove previous selection
+          const prevSelected = document.querySelector('.slot.selected');
+          if(prevSelected) prevSelected.classList.remove('selected');
+
+          // Mark this as selected
+          slotDiv.classList.add('selected');
+          selectedSlot = slotDiv.dataset.slot;
+
+          // Enable confirm button if entry time selected too
+          confirmSlotTimeBtn.disabled = !entryTimeInput.value;
+        });
+
+        slotsContainer.appendChild(slotDiv);
+      }
+    }
+
+    // Proceed from user details to slot/time selection
+    proceedBtn.addEventListener('click', () => {
+      const name = nameInput.value.trim();
+      const vehicle = vehicleInput.value.trim();
+      if (!name || !vehicle) {
+        alert('Please enter both name and vehicle number.');
+        return;
+      }
+      formSection.classList.add('hidden');
+      slotTimeSection.classList.remove('hidden');
+      createSlots();
+
+      // Set default entry time to current datetime (rounded to minutes)
+      let now = new Date();
+      now.setSeconds(0,0);
+      let localISO = now.toISOString().slice(0,16);
+      entryTimeInput.value = localISO;
+
+      // Initially disable confirm button
+      confirmSlotTimeBtn.disabled = true;
+    });
+
+    // Enable confirm button only if slot selected and entry time chosen
+    entryTimeInput.addEventListener('input', () => {
+      confirmSlotTimeBtn.disabled = !(selectedSlot && entryTimeInput.value);
+    });
+
+    // Confirm slot and entry time, then show payment
+    confirmSlotTimeBtn.addEventListener('click', () => {
+      if (!selectedSlot) {
+        alert('Please select a parking slot.');
+        return;
+      }
+      if (!entryTimeInput.value) {
+        alert('Please select entry time.');
+        return;
+      }
+
+      bookedEntryTime = new Date(entryTimeInput.value);
+      if (isNaN(bookedEntryTime)) {
+        alert('Invalid entry time.');
+        return;
+      }
+      bookedExitTime = new Date(bookedEntryTime.getTime() + 2*60*60*1000);
+
+      slotTimeSection.classList.add('hidden');
+      paymentSection.classList.remove('hidden');
+
+      paymentInfo.textContent = `Slot: ${selectedSlot}, Entry: ${bookedEntryTime.toLocaleString()}, Exit: ${bookedExitTime.toLocaleString()}`;
+
+      paymentReceivedBtn.disabled = false;
+    });
+
+    // After payment confirmed, show receipt with QR code
+    paymentReceivedBtn.addEventListener('click', () => {
+      paymentSection.classList.add('hidden');
+      receiptSection.classList.remove('hidden');
+
+      receiptName.textContent = nameInput.value;
+      receiptVehicle.textContent = vehicleInput.value;
+      receiptSlot.textContent = selectedSlot;
+      entryTimeEl.textContent = bookedEntryTime.toLocaleString();
+      exitTimeEl.textContent = bookedExitTime.toLocaleString();
+
+      // Generate QR code for entry gate with booking details
+      const qrData =
+        `ParkingApp\n` +
+        `Name: ${nameInput.value}\n` +
+        `Vehicle: ${vehicleInput.value}\n` +
+        `Slot: ${selectedSlot}\n` +
+        `Entry: ${bookedEntryTime.toLocaleString()}\n` +
+        `Exit: ${bookedExitTime.toLocaleString()}`;
+
+      entryQrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`;
+    });
+  </script>
+
+</body>
+</html>

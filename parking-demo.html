@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mall Parking Reservation & Access Simulation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+  body {
+    font-family: 'Poppins', sans-serif;
+    background: #1e1e2f;
+    color: #e0e0e0;
+    margin: 0;
+    overflow-x: hidden;
+  }
+  h1 {
+    text-align: center;
+    padding: 1em 0 0.25em;
+    font-weight: 600;
+    color: #4ce1b6;
+    text-shadow: 1px 1px 3px #0f7761;
+  }
+  h2 {
+    margin-top: 0;
+    font-weight: 600;
+  }
+  #infoPanel {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto 20px;
+    background: #292a3a;
+    border-radius: 8px;
+    padding: 12px 20px;
+    box-shadow: 0 0 15px #4ce1b6aa;
+    font-size: 1.1em;
+    min-height: 56px;
+    text-align: center;
+    line-height: 1.4;
+  }
+  #floorTabs {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 10px;
+  }
+  .floor-tab {
+    background: #292a3a;
+    color: #888caa;
+    border: none;
+    padding: 10px 18px;
+    margin: 0 5px;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: background 0.3s, color 0.3s;
+  }
+  .floor-tab.active, .floor-tab:hover {
+    background: #4ce1b6;
+    color: #1e1e2f;
+    box-shadow: 0 4px 10px #4ce1b6bb;
+  }
+  #parkingArea {
+    background: #292a3a;
+    border-radius: 0 0 12px 12px;
+    max-width: 900px;
+    margin: 0 auto 3em;
+    padding: 18px;
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    grid-gap: 7px;
+    box-shadow: 0 0 20px #4ce1b6aa inset;
+    position: relative;
+    height: 450px;
+  }
+  .spot {
+    background: #44475a;
+    width: 60px;
+    height: 50px;
+    border-radius: 6px;
+    box-shadow: inset 0 0 6px #0008;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ccc;
+    font-weight: 600;
+    font-size: 0.75rem;
+    -webkit-user-select:Start Simulation;
+    position: relative;
+    transition: background 0.3s, box-shadow 0.3s;
+    cursor: default;
+  }
+  .spot.free {
+    background: #20232a;
+    box-shadow: inset 0 0 8px #0f7761;
+    color: #51ffa2;
+  }
+  .spot.reserved {
+    background: #9d3932;
+    box-shadow: inset 0 0 10px #7a2a26;
+    color: #ffe5df;
+  }
+  .spot.current {
+    background: #3c60a6;
+    box-shadow: 0 0 14px #83abff;
+    color: #e5f1ff;
+    font-weight: 700;
+  }
+  .spot.scanned {
+    box-shadow: 0 0 16px #4ce1b6;
+    border: 2px solid #4ce1b6;
+  }
+  #car {
+    position: absolute;
+    width: 36px;
+    height: 18px;
+    background: url('https://cdn-icons-png.flaticon.com/512/743/743922.png') no-repeat center/contain;
+    transition: transform 1s ease;
+    z-index: 10;
+    filter: drop-shadow(0 0 3px #4ce1b6);
+  }
+  #barrier {
+    position: absolute;
+    width: 64px;
+    height: 20px;
+    background: linear-gradient(45deg, #ff3e3e, #a12b2b);
+    border-radius: 4px;
+    box-shadow: 0 0 6px #ff4e4e;
+    top: 50%;
+    left: 50%;
+    transform-origin: left center;
+    transform: translate(-50%, -50%) rotate(0deg);
+    transition: transform 1s ease;
+    z-index: 9;
+  }
+  #barrier.lowered {
+    transform: translate(-50%, -50%) rotate(-90deg);
+    box-shadow: 0 0 15px #3ea94c;
+    background: linear-gradient(45deg, #3ea94c, #276933);
+  }
+  #controls {
+    max-width: 900px;
+    margin: 0 auto 2em;
+    text-align: center;
+  }
+  #startBtn {
+    background: #4ce1b6;
+    border: none;
+    padding: 14px 28px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1.1rem;
+    box-shadow: 0 0 20px #4ce1b6;
+    color: #1e1e2f;
+    transition: background 0.3s ease;
+  }
+  #startBtn:hover:not(:disabled) {
+    background: #39d9a5;
+  }
+  #startBtn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+  #legend {
+    max-width: 900px;
+    margin: 30px auto 0;
+    display: flex;
+    justify-content: center;
+    gap: 35px;
+    font-size: 0.9rem;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .legend-color {
+    width: 20px;
+    height: 15px;
+    border-radius: 4px;
+  }
+  .color-free { background: #20232a; box-shadow: inset 0 0 8px #0f7761;}
+  .color-reserved { background: #9d3932; box-shadow: inset 0 0 10px #7a2a26;}
+  .color-car { background: #3c60a6; box-shadow: 0 0 14px #83abff;}
+  .color-scanned { border: 2px solid #4ce1b6; box-shadow: 0 0 12px #4ce1b6; background: #44475a;}
+  /* Scrollbar for floors parking area if needed */
+  #parkingArea {
+    overflow-y: auto;
+  }
+</style>
+</head>
+<body>
+<h1>Mall Parking Reservation & Access Simulation</h1>
+
+<div id="infoPanel">Click "Start Simulation" to see the parking pre-booking and vehicle access process.</div>
+
+<div id="floorTabs">
+  <button class="floor-tab active" data-floor="0">Floor 1</button>
+  <button class="floor-tab" data-floor="1">Floor 2</button>
+  <button class="floor-tab" data-floor="2">Floor 3</button>
+  <button class="floor-tab" data-floor="3">Floor 4</button>
+</div>
+
+<div id="parkingArea"></div>
+
+<div id="barrier" style="display:none;"></div>
+<div id="car" style="display:none;"></div>
+
+<div id="controls">
+  <button id="startBtn">Start Simulation</button>
+</div>
+
+<div id="legend">
+  <div class="legend-item"><div class="legend-color color-free"></div> Free Spot</div>
+  <div class="legend-item"><div class="legend-color color-reserved"></div> Reserved Spot</div>
+  <div class="legend-item"><div class="legend-color color-car"></div> Car Location</div>
+  <div class="legend-item"><div class="legend-color color-scanned"></div> QR Scanned</div>
+</div>
+
+<script>
+(() => {
+  const FLOORS = 4;
+  const SPOTS_PER_FLOOR = 100;
+  const preBookedSpots = [
+    [2, 5, 11, 24, 30, 45, 57, 69, 80, 94],
+    [3, 12, 19, 28, 31, 43, 52, 65, 78, 88],
+    [9, 15, 22, 34, 40, 50, 62, 74, 83, 96],
+    [1, 7, 20, 27, 33, 46, 55, 66, 71, 90]
+  ];
+  const stepDuration = 1500;
+
+  const infoPanel = document.getElementById('infoPanel');
+  const startBtn = document.getElementById('startBtn');
+  const parkingArea = document.getElementById('parkingArea');
+  const floorTabs = document.querySelectorAll('.floor-tab');
+  const carElem = document.getElementById('car');
+  const barrierElem = document.getElementById('barrier');
+
+  let currentFloor = 0;
+  let parkingData = [];
+  let reserved = {floor: 1, spot: 12};
+  let spotElements = [];
+
+  const delay = ms => new Promise(r => setTimeout(r, ms));
+
+  function initParkingData() {
+    parkingData = [];
+    for (let f = 0; f < FLOORS; f++) {
+      let floorSpots = [];
+      for (let s = 0; s < SPOTS_PER_FLOOR; s++) {
+        floorSpots.push({
+          index: s,
+          status: preBookedSpots[f].includes(s) ? 'reserved' : 'free',
+        });
+      }
+      parkingData.push(floorSpots);
+    }
+  }
+
+  function renderFloor(floor) {
+    parkingArea.innerHTML = '';
+    spotElements = [];
+    for (let s = 0; s < SPOTS_PER_FLOOR; s++) {
+      const spot = parkingData[floor][s];
+      const spotDiv = document.createElement('div');
+      spotDiv.classList.add('spot', spot.status);
+      spotDiv.textContent = s+1;
+      spotDiv.dataset.spot = s;
+      parkingArea.appendChild(spotDiv);
+      spotElements.push(spotDiv);
+    }
+  }
+
+  floorTabs.forEach(tab => {
+    tab.addEventListener('click', e => {
+      floorTabs.forEach(t => t.classList.remove('active'));
+      e.target.classList.add('active');
+      currentFloor = Number(e.target.dataset.floor);
+      renderFloor(currentFloor);
+      resetCarAndBarrier();
+      infoPanel.textContent = "Viewing Floor " + (currentFloor + 1) + ".";
+      if (currentFloor === reserved.floor) {
+        infoPanel.textContent += " Reserved spot is highlighted in red.";
+      }
+    });
+  });
+
+  function resetCarAndBarrier() {
+    carElem.style.display = 'none';
+    carElem.style.transition = '';
+    carElem.style.transform = 'translate(0, 0) rotate(0deg)';
+    barrierElem.style.display = 'none';
+    barrierElem.classList.remove('lowered');
+  }
+
+  async function startSimulation() {
+    startBtn.disabled = true;
+    infoPanel.textContent = "Step 1: Car arrives at parking entrance and scans QR code.";
+    resetCarAndBarrier();
+
+    const parRect = parkingArea.getBoundingClientRect();
+    carElem.style.display = 'block';
+    carElem.style.left = '-50px';
+    carElem.style.top = '10px';
+    carElem.style.transform = 'rotate(0deg)';
+    await delay(stepDuration);
+
+    infoPanel.textContent = "Access granted! Car is allowed to enter.";
+    await delay(stepDuration);
+
+    infoPanel.textContent = "Navigating to reserved floor " + (reserved.floor + 1) + "...";
+    floorTabs[reserved.floor].click();
+    await delay(stepDuration);
+
+    infoPanel.textContent = "Floor " + (reserved.floor + 1) + " displayed. Locating reserved parking spot #" + (reserved.spot + 1) + ".";
+    await delay(stepDuration);
+
+    let targetSpotElem = spotElements[reserved.spot];
+    const spotRect = targetSpotElem.getBoundingClientRect();
+    const parkingRect = parkingArea.getBoundingClientRect();
+
+    const targetX = spotRect.left - parkingRect.left + (spotRect.width/2) - (carElem.offsetWidth/2);
+    const targetY = spotRect.top - parkingRect.top + (spotRect.height/2) - (carElem.offsetHeight/2);
+
+    infoPanel.textContent = "Car navigating to reserved spot #" + (reserved.spot + 1) + ".";
+    carElem.style.transition = 'transform 3s ease-in-out';
+    carElem.style.transform = 'translate(${targetX + 50}px, ${targetY - 10}px) rotate(0deg)';
+    await delay(3000);
+
+    spotElements.forEach(sp => {
+      sp.classList.remove('current', 'scanned');
+      if(parkingData[reserved.floor][sp.dataset.spot].status === 'reserved'){
+        sp.classList.add('reserved');
+      } else {
+        sp.classList.add('free');
+      }
+    });
+    targetSpotElem.classList.add('current');
+
+    infoPanel.textContent = "Arrived at reserved spot. Car scanning spot QR code for verification...";
+    await delay(stepDuration);
+
+    targetSpotElem.classList.add('scanned');
+    const expectedCarId = "CAR1234";
+    const scannedCarId = "CAR1234";
+
+    if(scannedCarId === expectedCarId){
+      infoPanel.textContent = "Car verified! Lowering barrier to allow parking...";
+      barrierElem.style.display = 'block';
+      const barrX = spotRect.left - parkingRect.left + (spotRect.width/2);
+      const barrY = spotRect.top - parkingRect.top + spotRect.height + 10;
+
+      barrierElem.style.left = barrX + "px";
+      barrierElem.style.top = barrY + "px";
+      barrierElem.classList.remove('lowered');
+      await delay(stepDuration);
+
+      barrierElem.classList.add('lowered');
+      await delay(stepDuration*1.5);
+
+      infoPanel.textContent = "Barrier lowered. Car is parking...";
+      await delay(stepDuration * 2);
+
+      barrierElem.classList.remove('lowered');
+      infoPanel.textContent = "Car parked successfully. Barrier raised again. Thorny speed breakers are up.";
+      await delay(stepDuration);
+
+      infoPanel.textContent = "User has exited the car and entered the mall. Enjoy your shopping!";
+      await delay(stepDuration * 2);
+
+      infoPanel.textContent = "Departure time: User returns to car. Scanning QR at parking spot for payment...";
+      await delay(stepDuration * 2);
+
+      infoPanel.textContent = "Payment successful! Lowering barrier for exit...";
+      barrierElem.classList.add('lowered');
+      await delay(stepDuration * 1.5);
+
+      infoPanel.textContent = "Barrier lowered. Car ready to exit parking spot.";
+
+      const exitX = -50;
+      const exitY = 10;
+
+      carElem.style.transition = 'transform 3s ease-in-out';
+      carElem.style.transform = 'translate(${exitX}px, ${exitY}px) rotate(0deg)';
+      await delay(3000);
+
+      parkingData[reserved.floor][reserved.spot].status = 'free';
+      if(currentFloor === reserved.floor){
+        renderFloor(currentFloor);
+      }
+
+      infoPanel.textContent = "Car exited parking spot. Spot is now free and available for others in mobile app.";
+
+      carElem.style.display = 'none';
+      barrierElem.style.display = 'none';
+
+    } else {
+      infoPanel.textContent = "Verification failed! Spot access denied.";
+    }
+
+    startBtn.disabled = false;
+  }
+
+  function init() {
+    initParkingData();
+    renderFloor(currentFloor);
+    infoPanel.textContent = "Viewing Floor 1. Reserved spots are highlighted in red.";
+  }
+
+  startBtn.addEventListener('click', startSimulation);
+
+  init();
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Parko - Parking Spot Booking</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500&display=swap');
+
+  body {
+    margin: 0;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  header {
+    padding: 1rem 0;
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin-bottom: 1rem;
+  }
+
+  .container {
+    max-width: 900px;
+    width: 100%;
+    background: rgba(0,0,0,0.3);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 10px 15px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  h2 {
+    margin-top: 0;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+  }
+
+  .floors {
+    display: flex;
+    gap: 40px;
+    justify-content: center;
+  }
+
+  .floor {
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 15px;
+    width: 300px;
+    box-shadow: inset 0 0 10px rgba(255,255,255,0.1);
+  }
+
+  .spots {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+  }
+
+  .spot {
+    background: rgba(255,255,255,0.2);
+    border-radius: 8px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.3s ease, transform 0.15s ease;
+    user-select: none;
+  }
+
+  .spot:hover:not(.booked) {
+    background: #8d6ef0;
+    transform: scale(1.1);
+  }
+
+  .spot.booked {
+    background: #d9534f;
+    cursor: not-allowed;
+    text-decoration: line-through;
+    color: #fff5f5;
+  }
+
+  /* Modal styles */
+  .modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0,0.75);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  }
+
+  .modal.active {
+    display: flex;
+  }
+
+  .modal-content {
+    background: #1a1a1a;
+    padding: 30px 25px;
+    border-radius: 12px;
+    width: 320px;
+    max-width: 90%;
+    text-align: center;
+    box-shadow:
+      0 4px 10px rgba(133, 94, 255, 0.5),
+      0 0 15px #8d6ef0;
+  }
+
+  .modal-content h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+  }
+
+  input[type="text"] {
+    width: 100%;
+    padding: 12px 10px;
+    font-size: 1rem;
+    border-radius: 8px;
+    border: none;
+    outline: none;
+    margin-bottom: 20px;
+    box-sizing: border-box;
+  }
+
+  button {
+    background: #8d6ef0;
+    border: none;
+    padding: 12px 25px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+
+  button:disabled {
+    background: rgba(141, 110, 240, 0.5);
+    cursor: not-allowed;
+  }
+
+  button:hover:not(:disabled) {
+    background: #764ba2;
+  }
+
+  #paymentMessage {
+    margin-top: 15px;
+    font-size: 1.1rem;
+    color: #b0f9b0;
+  }
+
+  #qrContainer {
+    margin-top: 20px;
+    background: #fff;
+    padding: 15px;
+    border-radius: 12px;
+    display: inline-block;
+  }
+
+  footer {
+    margin-top: auto;
+    padding: 10px;
+    font-size: 0.9rem;
+    color: #ddd;
+    text-align: center;
+  }
+
+  @media (max-width: 700px) {
+    .floors {
+      flex-direction: column;
+      align-items: center;
+    }
+  }
+</style>
+</head>
+<body>
+<header>Parko - Subhas Nagar Parking Booking</header>
+<div class="container">
+  <h2>Select a Parking Spot</h2>
+  <div class="floors" id="floorsContainer">
+    <!-- Floors with spots will be generated here by JS -->
+  </div>
+</div>
+
+<!-- Modal for booking -->
+<div class="modal" id="bookingModal" aria-hidden="true">
+  <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <h3 id="modalTitle">Book Parking Spot</h3>
+    <p id="selectedSpotInfo" style="margin-bottom: 15px;"></p>
+    <label for="carNumberInput" style="display:block; margin-bottom: 6px; font-weight: 600;">Enter Car Number</label>
+    <input type="text" id="carNumberInput" placeholder="e.g. MH12AB1234" maxlength="15" autocomplete="off" />
+    <button id="payButton" disabled>Pay ₹50</button>
+    <p id="paymentMessage"></p>
+    <div id="qrContainer" style="display: none;"></div>
+    <button id="closeModalButton" style="margin-top: 15px; background: #d9534f;">Close</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<script>
+  (() => {
+    const floorsCount = 2;
+    const spotsPerFloor = 10;
+    const parkingAreaName = "Parko Subhas Nagar";
+    const paymentAmount = 50;
+    const floorsContainer = document.getElementById('floorsContainer');
+    const bookingModal = document.getElementById('bookingModal');
+    const selectedSpotInfo = document.getElementById('selectedSpotInfo');
+    const carNumberInput = document.getElementById('carNumberInput');
+    const payButton = document.getElementById('payButton');
+    const paymentMessage = document.getElementById('paymentMessage');
+    const qrContainer = document.getElementById('qrContainer');
+    const closeModalButton = document.getElementById('closeModalButton');
+
+    // Load booking data from localStorage to persist bookings.
+    let bookings = JSON.parse(localStorage.getItem('parkoBookings') || '{}');
+
+    // Generate the parking floors and spots UI
+    function renderFloors() {
+      floorsContainer.innerHTML = '';
+      for (let f = 1; f <= floorsCount; f++) {
+        const floorDiv = document.createElement('div');
+        floorDiv.classList.add('floor');
+	floorDiv.innerHTML = `<h3>Floor ${f}</h3><div class="spots" data-floor="${f}"></div>`;
+        const spotsDiv = floorDiv.querySelector('.spots');
+        for (let s = 1; s <= spotsPerFloor; s++) {
+	const spotId = `F${f}S${s}`;
+          const spotDiv = document.createElement('div');
+          spotDiv.classList.add('spot');
+          if (bookings[spotId]) {
+            spotDiv.classList.add('booked');
+            spotDiv.title = 'Booked';
+          } else {
+            spotDiv.title = 'Available';
+          }
+          spotDiv.textContent = s;
+          spotDiv.dataset.spotId = spotId;
+          spotDiv.dataset.floor = f;
+          spotDiv.dataset.spotNumber = s;
+          spotsDiv.appendChild(spotDiv);
+        }
+        floorsContainer.appendChild(floorDiv);
+      }
+    }
+
+    // Open the modal for booking a selected spot
+    function openBookingModal(spotId, floor, spotNumber) {
+      bookingModal.classList.add('active');
+      bookingModal.setAttribute('aria-hidden', 'false');
+      selectedSpotInfo.textContent = `Floor ${floor} - Spot ${spotNumber}`;
+      carNumberInput.value = '';
+      carNumberInput.focus();
+      payButton.disabled = true;
+      paymentMessage.textContent = '';
+      qrContainer.style.display = 'none';
+      qrContainer.innerHTML = '';
+      currentBooking = { spotId, floor, spotNumber };
+    }
+
+    // Close the modal
+    function closeBookingModal() {
+      bookingModal.classList.remove('active');
+      bookingModal.setAttribute('aria-hidden', 'true');
+      currentBooking = null;
+    }
+
+    // Validate car number input
+    function validateCarNumber(value) {
+      // Basic validation: non empty, alphanumeric and spaces allowed
+      return /^[a-zA-Z0-9\s-]{4,15}$/.test(value.trim());
+    }
+
+    // On page load render floors
+    renderFloors();
+
+    // Event delegation for spot clicks
+    floorsContainer.addEventListener('click', (e) => {
+      if (e.target.classList.contains('spot') && !e.target.classList.contains('booked')) {
+        const spotId = e.target.dataset.spotId;
+        const floor = e.target.dataset.floor;
+        const spotNumber = e.target.dataset.spotNumber;
+        openBookingModal(spotId, floor, spotNumber);
+      }
+    });
+
+    carNumberInput.addEventListener('input', (e) => {
+      const value = e.target.value;
+      if (validateCarNumber(value)) {
+        payButton.disabled = false;
+      } else {
+        payButton.disabled = true;
+      }
+    });
+
+    let currentBooking = null;
+
+    payButton.addEventListener('click', () => {
+      if (!currentBooking) return;
+      const carNum = carNumberInput.value.trim().toUpperCase();
+      if (!validateCarNumber(carNum)) {
+        paymentMessage.style.color = '#f44336'; // red
+        paymentMessage.textContent = 'Invalid car number format.';
+        return;
+      }
+      // Simulate payment success
+      payButton.disabled = true;
+      paymentMessage.style.color = '#b0f9b0';
+      paymentMessage.textContent = `Payment of ₹${paymentAmount} successful! Generating QR code...`;
+
+      // Save booking info
+      bookings[currentBooking.spotId] = {
+        floor: currentBooking.floor,
+        spot: currentBooking.spotNumber,
+        carNumber: carNum,
+        amountPaid: paymentAmount,
+        timestamp: new Date().toISOString()
+      };
+      localStorage.setItem('parkoBookings', JSON.stringify(bookings));
+
+      // Mark spot booked in UI
+      renderFloors();
+
+      // Generate QR code with booking info
+	const qrData = `Parko Subhas Nagar\nFloor: ${currentBooking.floor}\nSpot: ${currentBooking.spotNumber}\nCar Number: ${carNum}\nPaid: ₹${paymentAmount}\nBooking Time: ${new 	Date().toLocaleString()}`;
+      qrContainer.style.display = 'block';
+      qrContainer.innerHTML = '';
+      QRCode.toCanvas(document.createElement('canvas'), qrData, { width: 180, margin: 2 }, (error, canvas) => {
+        if (error) {
+          paymentMessage.style.color = '#f44336'; // red
+          paymentMessage.textContent = 'Error generating QR code.';
+          return;
+        }
+        qrContainer.appendChild(canvas);
+      });
+    });
+
+    closeModalButton.addEventListener('click', () => {
+      closeBookingModal();
+    });
+
+    // Accessibility: close modal on ESC key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && bookingModal.classList.contains('active')) {
+        closeBookingModal();
+      }
+    });
+  })();
+</script>
+<footer>© 2024 Parko Parking Booking System</footer>
+</body>
+</html>
